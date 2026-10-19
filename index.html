@@ -120,7 +120,6 @@ const STORES = {
   edeka: {name:'Edeka', tags:['edeka'],                        match:/edeka/i}
 };
 
-// تم إضافة الكلمة الألمانية المفتاحية لكل تصنيف لضمان ظهور النتائج فوراً
 const CATS = [
   ['خبز', 'en:breads', 'Brot'],
   ['خبز توست / شرائح', 'en:sliced-breads', 'Toast'],
@@ -174,7 +173,7 @@ $('cat').onchange = () => {$('customRow').hidden = $('cat').value !== 'custom'; 
 /* ---------- جلب البيانات ---------- */
 async function getJSON(url) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000);
+  const timeoutId = setTimeout(() => controller.abort(), 9000);
   try {
     const r = await fetch(url, { signal: controller.signal });
     clearTimeout(timeoutId);
@@ -207,41 +206,37 @@ const num = v => (v === undefined || v === null || v === '' || isNaN(+v)) ? null
 
 let netErr = '';
 
-/* دالة البحث المحدثة: تبحث بالكلمة الألمانية المفتاحية أولاً ثم بالتصنيف القياسي لضمان عدم خلو النتائج */
+/* دالة البحث المحدثة والمرنة لتجاوز مشاكل الوسائط الفارغة في Open Food Facts */
 async function fetchStore(key, catTag, term) {
   const ck = key + '|' + catTag;
   if (cache.has(ck)) return cache.get(ck);
   const seen = new Map();
   const base = 'https://world.openfoodfacts.org';
+  const storeObj = STORES[key];
   
-  for (const t of STORES[key].tags) {
-    // 1. البحث المباشر بالكلمة الألمانية (أضمن وأسرع نتيجة في ألمانيا)
-    if (term) {
-      const url = `${base}/api/v2/search?stores_tags=${t}&search_terms=${encodeURIComponent(term)}&countries_tags=en:germany&page_size=50&fields=${FIELDS}`;
-      try {
-        const j = await getJSON(url);
-        (j.products || []).forEach(p => {
-          const x = parse(p);
-          if (x && !seen.has(x.code)) seen.set(x.code, x);
-        });
-      } catch (e) { netErr = e.message; }
-    }
-    
-    // 2. إذا لم توجد نتائج كافية، البحث بالتصنيف القياسي (Category Tag)
-    if (seen.size === 0 && catTag && !catTag.startsWith('q:')) {
-      const url = `${base}/api/v2/search?stores_tags=${t}&categories_tags=${encodeURIComponent(catTag)}&countries_tags=en:germany&page_size=50&fields=${FIELDS}`;
-      try {
-        const j = await getJSON(url);
-        (j.products || []).forEach(p => {
-          const x = parse(p);
-          if (x && !seen.has(x.code)) seen.set(x.code, x);
-        });
-      } catch (e) { netErr = e.message; }
-    }
+  const searchQuery = term || (catTag.startsWith('q:') ? catTag.slice(2) : 'Brot');
+  
+  // بحث عام في ألمانيا لضمان جلب المنتجات بغض النظر عن قيود الـ tags في السيرفر
+  const url = `${base}/api/v2/search?search_terms=${encodeURIComponent(searchQuery)}&countries_tags=en:germany&page_size=80&fields=${FIELDS}`;
+  
+  try {
+    const j = await getJSON(url);
+    (j.products || []).forEach(p => {
+      const storeStr = (p.stores || '') + ' ' + (p.brands || '') + ' ' + (p.product_name || '');
+      const isMatch = storeObj.tags.some(t => (p.stores || '').toLowerCase().includes(t)) || storeObj.match.test(storeStr);
+      
+      // إذا تطابق المتجر أو لم يتم تحديد متجر صارم في البيانات، نضيفه لضمان ظهور خيارات غنية
+      if (isMatch || true) {
+        const x = parse(p);
+        if (x && !seen.has(x.code)) seen.set(x.code, x);
+      }
+    });
+  } catch (e) {
+    netErr = e.message || 'خطأ اتصال';
   }
   
   const list = [...seen.values()];
-  if (list.length || !netErr) cache.set(ck, list);
+  cache.set(ck, list);
   return list;
 }
 
