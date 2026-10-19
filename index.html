@@ -122,8 +122,6 @@ const STORES = {
 };
 
 /* ========== ربط التصنيفات العربية بالألمانية وتصنيفات OFF ========== */
-// term: الكلمة الألمانية للبحث
-// tag: تصنيف OFF الدقيق لضمان دقة النتائج
 const CATS = [
   { ar: 'خبز', term: 'Brot', tag: 'en:breads' },
   { ar: 'خبز توست / شرائح', term: 'Toast', tag: 'en:toasts' },
@@ -182,8 +180,9 @@ CATS.forEach(c => {
 $('cat').onchange = () => { $('customRow').hidden = $('cat').value !== 'custom'; };
 $('go').onclick = search;
 
-/* ========== طبقة الشبكة ========== */
+/* ========== طبقة الشبكة (تم إزالة corsproxy.io الذي يتطلب مفتاح API) ========== */
 async function getJSON(url) {
+  // 1) محاولة الاتصال المباشر (Open Food Facts يدعم CORS)
   try {
     const ctrl = new AbortController();
     const to = setTimeout(() => ctrl.abort(), 12000);
@@ -195,30 +194,29 @@ async function getJSON(url) {
     }
   } catch (_) { }
 
-  const proxies = [
-    u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
-    u => 'https://corsproxy.io/?url=' + encodeURIComponent(u)
-  ];
-  let lastErr = new Error('network');
-  for (const make of proxies) {
-    try {
-      const ctrl = new AbortController();
-      const to = setTimeout(() => ctrl.abort(), 12000);
-      const r = await fetch(make(url), { signal: ctrl.signal });
-      clearTimeout(to);
-      if (!r.ok) { lastErr = new Error('proxy HTTP ' + r.status); continue; }
-      const text = await r.text();
-      if (!text || !text.trim() || text.trim() === 'null') { lastErr = new Error('proxy empty'); continue; }
-      let j;
-      try { j = JSON.parse(text); } catch { lastErr = new Error('proxy bad JSON'); continue; }
-      if (j && typeof j === 'object' && 'contents' in j) {
-        if (j.contents == null || j.contents === '') { lastErr = new Error('proxy null contents'); continue; }
-        try { j = JSON.parse(j.contents); } catch { lastErr = new Error('proxy bad inner JSON'); continue; }
-      }
-      return j;
-    } catch (e) { lastErr = e; }
+  // 2) وسيط AllOrigins (مجاني ولا يتطلب مفتاح API)
+  try {
+    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), 12000);
+    const r = await fetch(proxyUrl, { signal: ctrl.signal });
+    clearTimeout(to);
+    if (!r.ok) throw new Error('proxy HTTP ' + r.status);
+    
+    const text = await r.text();
+    if (!text || !text.trim() || text.trim() === 'null') throw new Error('proxy empty');
+    
+    let j;
+    try { j = JSON.parse(text); } catch { throw new Error('proxy bad JSON'); }
+    
+    if (j && typeof j === 'object' && 'contents' in j) {
+      if (j.contents == null || j.contents === '') throw new Error('proxy null contents');
+      j = JSON.parse(j.contents);
+    }
+    return j;
+  } catch (e) {
+    throw new Error('تعذر جلب البيانات من الخادم. ' + (e.message || ''));
   }
-  throw lastErr;
 }
 
 /* ========== تحليل المنتج ========== */
@@ -263,11 +261,9 @@ async function fetchAll(term, tag, isCustom) {
   url += '&page_size=100';
   url += '&fields=' + FIELDS;
 
-  // إذا كان تصنيفاً معروفاً، استخدم التصنيف الدقيق
   if (tag) {
     url += '&categories_tags=' + encodeURIComponent(tag);
   } else {
-    // إذا كان بحثاً مخصصاً، استخدم البحث النصي
     url += '&search_terms=' + encodeURIComponent(term);
   }
 
@@ -276,7 +272,6 @@ async function fetchAll(term, tag, isCustom) {
 
   let list = j.products.map(parse).filter(Boolean);
 
-  // فلترة محلية صارمة للبحث المخصص لمنع ظهور منتجات غير متصلة (مثل المياه)
   if (isCustom) {
     const cleanTerm = term.toLowerCase();
     list = list.filter(p => 
