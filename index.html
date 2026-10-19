@@ -119,14 +119,27 @@ const STORES = {
   penny: {name:'Penny', tags:['penny','penny-markt'],          match:/penny/i},
   edeka: {name:'Edeka', tags:['edeka'],                        match:/edeka/i}
 };
+
+// تم إضافة الكلمة الألمانية المفتاحية لكل تصنيف لضمان ظهور النتائج فوراً
 const CATS = [
-  ['خبز','en:breads'],['خبز توست / شرائح','en:sliced-breads'],['جبن','en:cheeses'],
-  ['زبادي','en:yogurts'],['حليب','en:milks'],['حبوب الإفطار','en:breakfast-cereals'],
-  ['مكرونة','en:pastas'],['أرز','en:rices'],['بسكويت','en:biscuits'],
-  ['شوكولاتة','en:chocolates'],['عصير','en:fruit-juices'],['مربى','en:jams'],
-  ['مكسرات','en:nuts'],['صلصات','en:sauces'],['مقرمشات / كراكرز','en:crackers'],
-  ['نوع آخر (اكتبه بالعربية)…','custom']
+  ['خبز', 'en:breads', 'Brot'],
+  ['خبز توست / شرائح', 'en:sliced-breads', 'Toast'],
+  ['جبن', 'en:cheeses', 'Käse'],
+  ['زبادي', 'en:yogurts', 'Joghurt'],
+  ['حليب', 'en:milks', 'Milch'],
+  ['حبوب الإفطار', 'en:breakfast-cereals', 'Müsli'],
+  ['مكرونة', 'en:pastas', 'Nudeln'],
+  ['أرز', 'en:rices', 'Reis'],
+  ['بسكويت', 'en:biscuits', 'Kekse'],
+  ['شوكولاتة', 'en:chocolates', 'Schokolade'],
+  ['عصير', 'en:fruit-juices', 'Saft'],
+  ['مربى', 'en:jams', 'Marmelade'],
+  ['مكسرات', 'en:nuts', 'Nüsse'],
+  ['صلصات', 'en:sauces', 'Soße'],
+  ['مقرمشات / كراكرز', 'en:crackers', 'Kräcker'],
+  ['نوع آخر (اكتبه بالعربية)…', 'custom', '']
 ];
+
 const FIELDS = ['code','product_name','product_name_de','generic_name','brands','quantity','image_front_url','image_nutrition_url','image_ingredients_url','image_url','nutriments','nutriscore_grade','stores'].join(',');
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -147,15 +160,21 @@ Object.entries(STORES).forEach(([k, s]) => {
   };
   $('stores').appendChild(b);
 });
-CATS.forEach(([ar, tag]) => {
-  const o = document.createElement('option'); o.value = tag; o.textContent = ar; $('cat').appendChild(o);
+
+CATS.forEach(([ar, tag, term]) => {
+  const o = document.createElement('option'); 
+  o.value = tag; 
+  o.dataset.term = term;
+  o.textContent = ar; 
+  $('cat').appendChild(o);
 });
+
 $('cat').onchange = () => {$('customRow').hidden = $('cat').value !== 'custom'; };$('go').onclick = search;
 
 /* ---------- جلب البيانات ---------- */
 async function getJSON(url) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 ثوانٍ كحد أقصى للطلب
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
   try {
     const r = await fetch(url, { signal: controller.signal });
     clearTimeout(timeoutId);
@@ -188,31 +207,36 @@ const num = v => (v === undefined || v === null || v === '' || isNaN(+v)) ? null
 
 let netErr = '';
 
-async function fetchStore(key, cat) {
-  const ck = key + '|' + cat;
+/* دالة البحث المحدثة: تبحث بالكلمة الألمانية المفتاحية أولاً ثم بالتصنيف القياسي لضمان عدم خلو النتائج */
+async function fetchStore(key, catTag, term) {
+  const ck = key + '|' + catTag;
   if (cache.has(ck)) return cache.get(ck);
   const seen = new Map();
   const base = 'https://world.openfoodfacts.org';
   
   for (const t of STORES[key].tags) {
-    const ts = encodeURIComponent(t);
-    let url = '';
-    if (cat.startsWith('q:')) {
-      const q = encodeURIComponent(cat.slice(2));
-      url = `${base}/cgi/search.pl?action=process&json=1&search_simple=1&search_terms=${q}&tagtype_0=stores&tag_contains_0=contains&tag_0=${ts}&tagtype_1=countries&tag_contains_1=contains&tag_1=germany&page_size=50&fields=${FIELDS}`;
-    } else {
-      const c = encodeURIComponent(cat.replace(/^en:/, ''));
-      url = `${base}/cgi/search.pl?action=process&json=1&tagtype_0=stores&tag_contains_0=contains&tag_0=${ts}&tagtype_1=categories&tag_contains_1=contains&tag_1=${c}&tagtype_2=countries&tag_contains_2=contains&tag_2=germany&page_size=50&fields=${FIELDS}`;
+    // 1. البحث المباشر بالكلمة الألمانية (أضمن وأسرع نتيجة في ألمانيا)
+    if (term) {
+      const url = `${base}/api/v2/search?stores_tags=${t}&search_terms=${encodeURIComponent(term)}&countries_tags=en:germany&page_size=50&fields=${FIELDS}`;
+      try {
+        const j = await getJSON(url);
+        (j.products || []).forEach(p => {
+          const x = parse(p);
+          if (x && !seen.has(x.code)) seen.set(x.code, x);
+        });
+      } catch (e) { netErr = e.message; }
     }
     
-    try {
-      const j = await getJSON(url);
-      (j.products || []).forEach(p => {
-        const x = parse(p);
-        if (x && !seen.has(x.code)) seen.set(x.code, x);
-      });
-    } catch (e) {
-      netErr = e.message || 'خطأ اتصال';
+    // 2. إذا لم توجد نتائج كافية، البحث بالتصنيف القياسي (Category Tag)
+    if (seen.size === 0 && catTag && !catTag.startsWith('q:')) {
+      const url = `${base}/api/v2/search?stores_tags=${t}&categories_tags=${encodeURIComponent(catTag)}&countries_tags=en:germany&page_size=50&fields=${FIELDS}`;
+      try {
+        const j = await getJSON(url);
+        (j.products || []).forEach(p => {
+          const x = parse(p);
+          if (x && !seen.has(x.code)) seen.set(x.code, x);
+        });
+      } catch (e) { netErr = e.message; }
     }
   }
   
@@ -285,6 +309,9 @@ async function toGerman(txt) {
 /* ---------- البحث والعرض ---------- */
 async function search() {
   let cat = $('cat').value;
+  let selectedOption = $('cat').options[$('cat').selectedIndex];
+  let term = selectedOption ? selectedOption.dataset.term : '';
+
   if (cat === 'custom') {
     const raw = $('custom').value.trim();
     if (!raw) { $('status').innerHTML = '<span class="err">اكتب نوع المنتج أولاً.</span>'; return; }
@@ -296,12 +323,15 @@ async function search() {
     }
     $('trans').textContent = 'البحث بالكلمة الألمانية: ' + de;
     cat = 'q:' + de;
+    term = de;
   }
+  
   const mode = $('sort').value;
   $('go').disabled = true; $('out').innerHTML = ''; netErr = '';$('status').textContent = 'جاري البحث في المتاجر الأربعة…';
+  
   try {
     const keys = Object.keys(STORES);
-    const lists = await Promise.all(keys.map(k => fetchStore(k, cat)));
+    const lists = await Promise.all(keys.map(k => fetchStore(k, cat, term)));
     const byStore = {}; keys.forEach((k, i) => byStore[k] = lists[i].slice().sort(sorter(mode)));
     state = {cat, mode, shown: 0, key: store, byStore};
     const mine = byStore[store];
