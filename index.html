@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>أفضل منتج في السوبرماركت</title>
+<style>
+:root{--bg:#eef3f1;--card:#fff;--ink:#12332e;--muted:#5b726d;--line:#d3e0dc;--accent:#0f6b5c;--accent-ink:#fff;--warn:#b45309;--good:#0f7a4d;--chip:#e1ece8;--bar:#cfe3dd}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1a18;--card:#162724;--ink:#e4f1ed;--muted:#93aaa4;--line:#264039;--accent:#4fd1b3;--accent-ink:#06211b;--warn:#f2b35c;--good:#5fd79b;--chip:#1f3731;--bar:#24413a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI",Tahoma,Arial,sans-serif;line-height:1.6;padding-top:env(safe-area-inset-top,0)}
+.wrap{max-width:760px;margin:0 auto;padding:16px 14px 48px}
+h1{font-size:1.5rem;margin:8px 0 2px}
+.sub{margin:0 0 16px;color:var(--muted);font-size:.95rem}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+label.t{display:block;font-weight:600;margin:0 0 6px;font-size:.92rem}
+.stores{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.stores button{padding:11px 4px;border:1.5px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;font:inherit;font-weight:700;cursor:pointer}
+.stores button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+select{width:100%;padding:11px 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+#status{margin:16px 2px;color:var(--muted)}
+h2{font-size:1.1rem;margin:22px 2px 10px}
+.prod{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:14px}
+.prod.best{border:2px solid var(--accent)}
+.rank{padding:6px 12px;font-size:.85rem;color:var(--muted);border-bottom:1px solid var(--line);display:flex;justify-content:space-between}
+.prod.best .rank{background:var(--accent);color:var(--accent-ink);font-weight:700}
+.gallery{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;background:#fff;direction:ltr}
+.gallery figure{flex:0 0 100%;margin:0;scroll-snap-align:center;position:relative;height:210px;display:flex;align-items:center;justify-content:center}
+.gallery img{max-width:100%;max-height:100%;object-fit:contain}
+.gallery figcaption{position:absolute;bottom:6px;left:8px;background:rgba(0,0,0,.6);color:#fff;font-size:.75rem;padding:1px 8px;border-radius:99px;direction:rtl}
+.noimg{color:#789;font-size:.9rem}
+.body{padding:12px 14px 14px}
+.name{font-weight:700;font-size:1.05rem;margin:0}
+.meta{color:var(--muted);font-size:.88rem;margin:2px 0 10px}
+.nums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.n{background:var(--chip);border-radius:10px;padding:8px 6px;text-align:center}
+.n b{display:block;font-size:1.25rem;line-height:1.2}
+.n span{font-size:.78rem;color:var(--muted)}
+.bar{height:8px;background:var(--bar);border-radius:99px;overflow:hidden;margin:2px 0 10px}
+.bar i{display:block;height:100%;background:var(--accent)}
+.price{display:flex;justify-content:space-between;align-items:center;gap:8px;border-top:1px dashed var(--line);padding-top:10px;font-size:.92rem}
+.price strong{font-size:1.15rem}
+.price small{color:var(--muted)}
+a{color:var(--accent)}
+.sug{border-inline-start:4px solid var(--good)}
+.sugtag{display:inline-block;background:var(--good);color:#fff;font-size:.78rem;padding:1px 9px;border-radius:99px;margin-bottom:6px}
+.more{width:100%;padding:11px;border:1.5px solid var(--accent);background:transparent;color:var(--accent);border-radius:10px;font:inherit;font-weight:700;cursor:pointer;margin-bottom:10px}
+.note{font-size:.8rem;color:var(--muted);margin-top:22px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>أفضل منتج في السوبرماركت</h1>
+  <p class="sub">المنتجات الألمانية مرتّبة من الأقل كربوهيدرات وسكراً، مع الصور والسعر.</p>
+  <div class="panel">
+    <label class="t">السوبرماركت</label>
+    <div class="stores" id="stores"></div>
+    <div class="two">
+      <div><label class="t" for="cat">نوع المنتج</label><select id="cat"></select></div>
+      <div><label class="t" for="sort">الترتيب حسب</label>
+        <select id="sort">
+          <option value="carbs">الأقل كربوهيدرات</option>
+          <option value="sugar">الأقل سكراً</option>
+          <option value="net">الأقل صافي كربوهيدرات</option>
+        </select></div>
+    </div>
+  </div>
+  <div id="status" role="status" aria-live="polite">جاري تحميل البيانات…</div>
+  <div id="out"></div>
+  <p class="note" id="note">البيانات من Open Food Facts وOpen Prices وتعتمد على مساهمات المستخدمين، فقد تكون ناقصة أو قديمة. الترتيب إرشادي وليس نصيحة طبية، تحقق من ملصق المنتج واسأل طبيبك.</p>
+</div>
+<script>
+const NAMES = {lidl:'Lidl', aldi:'Aldi', penny:'Penny', edeka:'Edeka'};
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = v => v == null ? '—' : Number(v).toFixed(1).replace(/\.0$/, '');
+let DB = null, store = 'lidl', shown = 5;
+
+const val = (p, m) => m === 'sugar' ? p.s : m === 'net' ? (p.f != null ? Math.max(0, p.c - p.f) : null) : p.c;
+const cmpv = (a, b) => (a ?? 1e9) - (b ?? 1e9);
+const sortList = (l, m) => l.slice().sort((a, b) => cmpv(val(a, m), val(b, m)) || cmpv(a.s, b.s) || cmpv(a.c, b.c));
+
+async function init() {
+  try {
+    const r = await fetch('data.json?v=' + Date.now());
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    DB = await r.json();
+  } catch (e) {
+    $('status').textContent = 'لم يتم العثور على ملف data.json. شغّل تحديث البيانات من تبويب Actions أولاً.';
+    return;
+  }
+  Object.keys(NAMES).forEach(k => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = NAMES[k]; b.setAttribute('aria-pressed', k === store);
+    b.onclick = () => { store = k; shown = 5; document.querySelectorAll('#stores button').forEach(x => x.setAttribute('aria-pressed', x === b)); render(); };
+    $('stores').appendChild(b);
+  });
+  DB.cats.forEach(([ar, tag]) => { const o = document.createElement('option'); o.value = tag; o.textContent = ar; $('cat').appendChild(o); });
+  $('cat').onchange = $('sort').onchange = () => { shown = 5; render(); };
+  $('note').textContent += ' آخر تحديث للبيانات: ' + DB.updated + '.';
+  render();
+}
+
+function render() {
+  const tag = $('cat').value, mode = $('sort').value, out = $('out');
+  out.innerHTML = '';
+  const list = sortList((DB.data[store] || {})[tag] || [], mode);
+  if (!list.length) { $('status').textContent = 'لا توجد منتجات بقيم غذائية لهذا النوع في ' + NAMES[store] + ' حالياً.'; return; }
+  $('status').textContent = 'أفضل ' + list.length + ' منتجات في ' + NAMES[store] + ':';
+  const maxV = Math.max(1, ...list.map(p => val(p, mode) ?? 0));
+  list.slice(0, shown).forEach((p, i) => out.appendChild(card(p, store, i, maxV, mode, false)));
+  if (shown < list.length) {
+    const b = document.createElement('button'); b.className = 'more'; b.textContent = 'عرض 5 منتجات أخرى';
+    b.onclick = () => { shown += 5; render(); }; out.appendChild(b);
+  }
+  const best = val(list[0], mode) ?? Infinity;
+  const sug = Object.keys(NAMES).filter(k => k !== store).map(k => ({k, p: sortList((DB.data[k] || {})[tag] || [], mode)[0]}))
+    .filter(x => x.p && val(x.p, mode) != null && val(x.p, mode) < best)
+    .sort((a, b) => val(a.p, mode) - val(b.p, mode));
+  const h = document.createElement('h2');
+  h.textContent = sug.length ? 'اقتراح: قيمة أقل في متجر آخر' : 'لا توجد قيمة أقل في المتاجر الأخرى';
+  out.appendChild(h);
+  sug.forEach(x => out.appendChild(card(x.p, x.k, 0, maxV, mode, true)));
+}
+
+function card(p, key, i, maxV, mode, isSug) {
+  const el = document.createElement('article');
+  el.className = 'prod' + (i === 0 && !isSug ? ' best' : '') + (isSug ? ' sug' : '');
+  const pct = Math.min(100, Math.round(((val(p, mode) ?? 0) / maxV) * 100));
+  const gal = p.im && p.im.length
+    ? p.im.map(([l, u]) => '<figure><img src="' + esc(u) + '" alt="' + esc(p.n) + '" loading="lazy"><figcaption>' + esc(l) + '</figcaption></figure>').join('')
+    : '<figure><span class="noimg">لا توجد صورة لهذا المنتج</span></figure>';
+  const pr = p.p ? '<span><strong>' + Number(p.p.v).toFixed(2).replace('.', ',') + ' €</strong></span><small>' + (p.p.same ? '' : 'من متجر آخر • ') + esc(p.p.d) + '</small>'
+                 : '<small>السعر غير متوفر</small>';
+  el.innerHTML =
+    '<div class="rank"><span>' + (isSug ? 'الأفضل في ' + NAMES[key] : (i === 0 ? 'الأفضل' : 'المرتبة ' + (i + 1))) + '</span>' + (p.g ? '<span>Nutri-Score ' + esc(p.g) + '</span>' : '') + '</div>' +
+    '<div class="gallery" tabindex="0">' + gal + '</div>' +
+    '<div class="body">' + (isSug ? '<span class="sugtag">قيمة أقل من ' + NAMES[store] + '</span>' : '') +
+      '<p class="name">' + esc(p.n) + '</p>' +
+      '<p class="meta">' + esc([p.b, p.q, NAMES[key]].filter(Boolean).join(' • ')) + '</p>' +
+      '<div class="nums"><div class="n"><b>' + fmt(p.c) + '</b><span>كربوهيدرات / 100غ</span></div>' +
+      '<div class="n"><b>' + fmt(p.s) + '</b><span>سكر / 100غ</span></div>' +
+      '<div class="n"><b>' + fmt(p.f) + '</b><span>ألياف / 100غ</span></div></div>' +
+      '<div class="bar"><i style="width:' + pct + '%"></i></div>' +
+      '<div class="price">' + pr + '</div>' +
+      '<div class="price"><small>الباركود ' + esc(p.k) + '</small><a href="https://world.openfoodfacts.org/product/' + encodeURIComponent(p.k) + '" target="_blank" rel="noopener">صفحة المنتج</a></div></div>';
+  return el;
+}
+init();
+</script>
+</body>
+</html>
