@@ -120,23 +120,24 @@ const STORES = {
   edeka: {name:'Edeka', tags:['edeka'],                        match:/edeka/i}
 };
 
+// تم ربط كل تصنيف بكلمات مفتاحية دقيقة (ألمانية) لضمان عدم خلط المنتجات
 const CATS = [
-  ['خبز', 'en:breads', 'Brot'],
-  ['خبز توست / شرائح', 'en:sliced-breads', 'Toast'],
-  ['جبن', 'en:cheeses', 'Käse'],
-  ['زبادي', 'en:yogurts', 'Joghurt'],
-  ['حليب', 'en:milks', 'Milch'],
-  ['حبوب الإفطار', 'en:breakfast-cereals', 'Müsli'],
-  ['مكرونة', 'en:pastas', 'Nudeln'],
-  ['أرز', 'en:rices', 'Reis'],
-  ['بسكويت', 'en:biscuits', 'Kekse'],
-  ['شوكولاتة', 'en:chocolates', 'Schokolade'],
-  ['عصير', 'en:fruit-juices', 'Saft'],
-  ['مربى', 'en:jams', 'Marmelade'],
-  ['مكسرات', 'en:nuts', 'Nüsse'],
-  ['صلصات', 'en:sauces', 'Soße'],
-  ['مقرمشات / كراكرز', 'en:crackers', 'Kräcker'],
-  ['نوع آخر (اكتبه بالعربية)…', 'custom', '']
+  ['خبز', 'Brot'],
+  ['خبز توست / شرائح', 'Toast'],
+  ['جبن', 'Käse'],
+  ['زبادي', 'Joghurt'],
+  ['حليب', 'Milch'],
+  ['حبوب الإفطار', 'Müsli'],
+  ['مكرونة', 'Nudeln'],
+  ['أرز', 'Reis'],
+  ['بسكويت', 'Kekse'],
+  ['شوكولاتة', 'Schokolade'],
+  ['عصير', 'Saft'],
+  ['مربى', 'Marmelade'],
+  ['مكسرات', 'Nüsse'],
+  ['صلصات', 'Soße'],
+  ['مقرمشات / كراكرز', 'Kräcker'],
+  ['نوع آخر (اكتبه بالعربية)…', 'custom']
 ];
 
 const FIELDS = ['code','product_name','product_name_de','generic_name','brands','quantity','image_front_url','image_nutrition_url','image_ingredients_url','image_url','nutriments','nutriscore_grade','stores'].join(',');
@@ -160,48 +161,81 @@ Object.entries(STORES).forEach(([k, s]) => {
   $('stores').appendChild(b);
 });
 
-CATS.forEach(([ar, tag, term]) => {
+CATS.forEach(([ar, term]) => {
   const o = document.createElement('option'); 
-  o.value = tag; 
-  o.dataset.term = term;
+  o.value = term; 
   o.textContent = ar; 
   $('cat').appendChild(o);
 });
 
 $('cat').onchange = () => {$('customRow').hidden = $('cat').value !== 'custom'; };$('go').onclick = search;
 
-/* ---------- جلب البيانات مع وسيط آمن لتجاوز أخطاء الاتصال ---------- */
+/* ---------- جلب البيانات الموثوق عبر وسائط متعددة لتفادي حظر الاتصال ---------- */
 async function getJSON(url) {
-  const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(url);
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 12000);
+  const proxies = [
+    'https://api.allorigins.win/get?url=' + encodeURIComponent(url),
+    'https://corsproxy.io/?' + encodeURIComponent(url)
+  ];
   
-  try {
-    const r = await fetch(proxyUrl, { signal: controller.signal });
-    clearTimeout(timeoutId);
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const data = await r.json();
-    return JSON.parse(data.contents);
-  } catch(e) {
-    clearTimeout(timeoutId);
-    // محاولة الاتصال المباشر كبديل احتياطي
-    const rDirect = await fetch(url);
-    if (!rDirect.ok) throw new Error('HTTP ' + rDirect.status);
-    return await rDirect.json();
+  for (const proxyUrl of proxies) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const r = await fetch(proxyUrl, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (r.ok) {
+        const data = await r.json();
+        const rawContent = data.contents || data;
+        return typeof rawContent === 'string' ? JSON.parse(rawContent) : rawContent;
+      }
+    } catch(err) {
+      continue;
+    }
   }
+  
+  // المحاولة المباشرة في حال فشل الوسطاء
+  const directR = await fetch(url);
+  if (!directR.ok) throw new Error('HTTP ' + directR.status);
+  return await directR.json();
 }
 
-function parse(p) {
+function parse(p, requiredTerm) {
   const n = p.nutriments || {};
   const carbs = num(n.carbohydrates_100g), sugar = num(n.sugars_100g), fiber = num(n.fiber_100g);
   const name = (p.product_name_de || p.product_name || p.generic_name || '').trim();
+  
   if (carbs == null || !name || !p.code) return null;
+
+  // فلترة ذكية لضمان مطابقة المنتج للبحث حصراً وعدم ظهور منتجات غريبة
+  if (requiredTerm && requiredTerm !== 'custom') {
+    const cleanName = name.toLowerCase();
+    const cleanTerm = requiredTerm.toLowerCase();
+    // التأكد من احتواء الاسم على الكلمة المطلوبة أو تقاربها
+    if (!cleanName.includes(cleanTerm)) {
+      // استثناءات ذكية لبعض المرادفات الألمانية
+      const exceptions = {
+        'Brot': ['toast', 'brötchen', 'baguette', 'vollkorn'],
+        'Käse': ['gouda', 'emmentaler', 'mozzarella', 'frischkäse', 'cheddar', 'käse'],
+        'Joghurt': ['quark', 'skyr', 'joghurt', 'dessert'],
+        'Milch': ['drink', 'milch', 'cacao']
+      };
+      let matchedException = false;
+      for (let key in exceptions) {
+        if (cleanTerm === key.toLowerCase()) {
+          if (exceptions[key].some(ex => cleanName.includes(ex))) matchedException = true;
+        }
+      }
+      if (!matchedException) return null;
+    }
+  }
+
   const imgs = [];
   const add = (u, label) => { if (u && !imgs.some(i => i.u === u)) imgs.push({u, label}); };
   add(p.image_front_url, 'الواجهة');
   add(p.image_nutrition_url, 'القيم الغذائية');
   add(p.image_ingredients_url, 'المكوّنات');
   if (!imgs.length) add(p.image_url, 'صورة');
+  
   return {
     code: p.code, name, brand: (p.brands || '').split(',')[0], qty: p.quantity || '',
     carbs, sugar, fiber, net: fiber != null ? Math.max(0, carbs - fiber) : null,
@@ -212,15 +246,15 @@ const num = v => (v === undefined || v === null || v === '' || isNaN(+v)) ? null
 
 let netErr = '';
 
-async function fetchStore(key, catTag, term) {
-  const ck = key + '|' + catTag;
+async function fetchStore(key, term) {
+  const ck = key + '|' + term;
   if (cache.has(ck)) return cache.get(ck);
   const seen = new Map();
   const base = 'https://world.openfoodfacts.org';
   const storeObj = STORES[key];
   
-  const searchQuery = term || (catTag.startsWith('q:') ? catTag.slice(2) : 'Brot');
-  const url = `${base}/api/v2/search?search_terms=${encodeURIComponent(searchQuery)}&countries_tags=en:germany&page_size=80&fields=${FIELDS}`;
+  const searchQuery = term.startsWith('q:') ? term.slice(2) : term;
+  const url = `${base}/api/v2/search?search_terms=${encodeURIComponent(searchQuery)}&countries_tags=en:germany&page_size=100&fields=${FIELDS}`;
   
   try {
     const j = await getJSON(url);
@@ -228,8 +262,9 @@ async function fetchStore(key, catTag, term) {
       const storeStr = (p.stores || '') + ' ' + (p.brands || '') + ' ' + (p.product_name || '');
       const isMatch = storeObj.tags.some(t => (p.stores || '').toLowerCase().includes(t)) || storeObj.match.test(storeStr);
       
+      // قبول المنتج إذا انتمى للمتجر أو كاحتياطي عام مع فلترة الاسم الصارمة
       if (isMatch || true) {
-        const x = parse(p);
+        const x = parse(p, searchQuery);
         if (x && !seen.has(x.code)) seen.set(x.code, x);
       }
     });
@@ -305,11 +340,9 @@ async function toGerman(txt) {
 
 /* ---------- البحث والعرض ---------- */
 async function search() {
-  let cat = $('cat').value;
-  let selectedOption = $('cat').options[$('cat').selectedIndex];
-  let term = selectedOption ? selectedOption.dataset.term : '';
+  let term = $('cat').value;
 
-  if (cat === 'custom') {
+  if (term === 'custom') {
     const raw = $('custom').value.trim();
     if (!raw) { $('status').innerHTML = '<span class="err">اكتب نوع المنتج أولاً.</span>'; return; }
     $('go').disabled = true; $('out').innerHTML = '';$('status').textContent = 'جاري ترجمة الكلمة إلى الألمانية…';
@@ -319,27 +352,26 @@ async function search() {
       $('go').disabled = false; return;
     }
     $('trans').textContent = 'البحث بالكلمة الألمانية: ' + de;
-    cat = 'q:' + de;
     term = de;
   }
   
   const mode = $('sort').value;
-  $('go').disabled = true; $('out').innerHTML = ''; netErr = '';$('status').textContent = 'جاري البحث في المتاجر الأربعة…';
+  $('go').disabled = true; $('out').innerHTML = ''; netErr = '';$('status').textContent = 'جاري البحث في المتجر وتصفية النتائج بدقة…';
   
   try {
     const keys = Object.keys(STORES);
-    const lists = await Promise.all(keys.map(k => fetchStore(k, cat, term)));
+    const lists = await Promise.all(keys.map(k => fetchStore(k, term)));
     const byStore = {}; keys.forEach((k, i) => byStore[k] = lists[i].slice().sort(sorter(mode)));
-    state = {cat, mode, shown: 0, key: store, byStore};
+    state = {cat: term, mode, shown: 0, key: store, byStore};
     const mine = byStore[store];
     if (!mine.length) {
-      $('status').innerHTML = '<span class="err">لم أجد منتجات بقيم غذائية كاملة لهذا التصنيف في ' + STORES[store].name + '.' + (netErr ? ' (خطأ اتصال: ' + esc(netErr) + ' — أعد المحاولة)' : '') + '</span>';
+      $('status').innerHTML = '<span class="err">لم أجد منتجات مطابقة لهذا التصنيف في ' + STORES[store].name + '.' + (netErr ? ' (خطأ اتصال: ' + esc(netErr) + ')' : '') + '</span>';
     } else {
-      $('status').textContent = 'وُجد ' + mine.length + ' منتج في ' + STORES[store].name + '. الأفضل أولاً:';
+      $('status').textContent = 'وُجد ' + mine.length + ' منتج مطابق في ' + STORES[store].name + '. الأفضل أولاً:';
     }
     render();
   } catch (e) {
-    $('status').innerHTML = '<span class="err">تعذّر الاتصال بـ Open Food Facts. تحقق من الإنترنت وأعد المحاولة.</span>';
+    $('status').innerHTML = '<span class="err">تعذّر الاتصال بالسيرفر. تحقق من الإنترنت وأعد المحاولة.</span>';
   }
   $('go').disabled = false;
 }
