@@ -120,7 +120,6 @@ const STORES = {
   edeka: {name:'Edeka', tags:['edeka'],                        match:/edeka/i}
 };
 
-// تم ربط كل تصنيف بكلمات مفتاحية دقيقة (ألمانية) لضمان عدم خلط المنتجات
 const CATS = [
   ['خبز', 'Brot'],
   ['خبز توست / شرائح', 'Toast'],
@@ -170,62 +169,36 @@ CATS.forEach(([ar, term]) => {
 
 $('cat').onchange = () => {$('customRow').hidden = $('cat').value !== 'custom'; };$('go').onclick = search;
 
-/* ---------- جلب البيانات الموثوق عبر وسائط متعددة لتفادي حظر الاتصال ---------- */
+/* ---------- اتصال مباشر وسريع بدون وسائط خارجية ---------- */
 async function getJSON(url) {
-  const proxies = [
-    'https://api.allorigins.win/get?url=' + encodeURIComponent(url),
-    'https://corsproxy.io/?' + encodeURIComponent(url)
-  ];
-  
-  for (const proxyUrl of proxies) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-      const r = await fetch(proxyUrl, { signal: controller.signal });
-      clearTimeout(timeoutId);
-      if (r.ok) {
-        const data = await r.json();
-        const rawContent = data.contents || data;
-        return typeof rawContent === 'string' ? JSON.parse(rawContent) : rawContent;
-      }
-    } catch(err) {
-      continue;
-    }
-  }
-  
-  // المحاولة المباشرة في حال فشل الوسطاء
-  const directR = await fetch(url);
-  if (!directR.ok) throw new Error('HTTP ' + directR.status);
-  return await directR.json();
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  return await r.json();
 }
 
-function parse(p, requiredTerm) {
+function parse(p, term) {
   const n = p.nutriments || {};
   const carbs = num(n.carbohydrates_100g), sugar = num(n.sugars_100g), fiber = num(n.fiber_100g);
   const name = (p.product_name_de || p.product_name || p.generic_name || '').trim();
   
   if (carbs == null || !name || !p.code) return null;
 
-  // فلترة ذكية لضمان مطابقة المنتج للبحث حصراً وعدم ظهور منتجات غريبة
-  if (requiredTerm && requiredTerm !== 'custom') {
+  // فحص دقيق لمنع اختلاط المنتجات (مثل ظهور الألبان عند بحث الخبز)
+  if (term && term !== 'custom') {
     const cleanName = name.toLowerCase();
-    const cleanTerm = requiredTerm.toLowerCase();
-    // التأكد من احتواء الاسم على الكلمة المطلوبة أو تقاربها
+    const cleanTerm = term.toLowerCase();
     if (!cleanName.includes(cleanTerm)) {
-      // استثناءات ذكية لبعض المرادفات الألمانية
-      const exceptions = {
-        'Brot': ['toast', 'brötchen', 'baguette', 'vollkorn'],
-        'Käse': ['gouda', 'emmentaler', 'mozzarella', 'frischkäse', 'cheddar', 'käse'],
-        'Joghurt': ['quark', 'skyr', 'joghurt', 'dessert'],
-        'Milch': ['drink', 'milch', 'cacao']
+      const allowed = {
+        'brot': ['toast', 'brötchen', 'baguette', 'vollkorn', 'brot'],
+        'käse': ['gouda', 'emmentaler', 'mozzarella', 'frischkäse', 'cheddar', 'käse', 'quark'],
+        'joghurt': ['quark', 'skyr', 'joghurt', 'dessert', 'pudding'],
+        'milch': ['drink', 'milch', 'kakao', 'cacao']
       };
-      let matchedException = false;
-      for (let key in exceptions) {
-        if (cleanTerm === key.toLowerCase()) {
-          if (exceptions[key].some(ex => cleanName.includes(ex))) matchedException = true;
-        }
+      let ok = false;
+      for (let k in allowed) {
+        if (cleanTerm === k && allowed[k].some(x => cleanName.includes(x))) ok = true;
       }
-      if (!matchedException) return null;
+      if (!ok) return null;
     }
   }
 
@@ -254,7 +227,7 @@ async function fetchStore(key, term) {
   const storeObj = STORES[key];
   
   const searchQuery = term.startsWith('q:') ? term.slice(2) : term;
-  const url = `${base}/api/v2/search?search_terms=${encodeURIComponent(searchQuery)}&countries_tags=en:germany&page_size=100&fields=${FIELDS}`;
+  const url = `${base}/api/v2/search?search_terms=${encodeURIComponent(searchQuery)}&countries_tags=en:germany&page_size=80&fields=${FIELDS}`;
   
   try {
     const j = await getJSON(url);
@@ -262,7 +235,6 @@ async function fetchStore(key, term) {
       const storeStr = (p.stores || '') + ' ' + (p.brands || '') + ' ' + (p.product_name || '');
       const isMatch = storeObj.tags.some(t => (p.stores || '').toLowerCase().includes(t)) || storeObj.match.test(storeStr);
       
-      // قبول المنتج إذا انتمى للمتجر أو كاحتياطي عام مع فلترة الاسم الصارمة
       if (isMatch || true) {
         const x = parse(p, searchQuery);
         if (x && !seen.has(x.code)) seen.set(x.code, x);
@@ -356,7 +328,7 @@ async function search() {
   }
   
   const mode = $('sort').value;
-  $('go').disabled = true; $('out').innerHTML = ''; netErr = '';$('status').textContent = 'جاري البحث في المتجر وتصفية النتائج بدقة…';
+  $('go').disabled = true; $('out').innerHTML = ''; netErr = '';$('status').textContent = 'جاري جلب المنتجات وترتيبها…';
   
   try {
     const keys = Object.keys(STORES);
@@ -365,9 +337,9 @@ async function search() {
     state = {cat: term, mode, shown: 0, key: store, byStore};
     const mine = byStore[store];
     if (!mine.length) {
-      $('status').innerHTML = '<span class="err">لم أجد منتجات مطابقة لهذا التصنيف في ' + STORES[store].name + '.' + (netErr ? ' (خطأ اتصال: ' + esc(netErr) + ')' : '') + '</span>';
+      $('status').innerHTML = '<span class="err">لم أجد منتجات مطابقة لهذا التصنيف في ' + STORES[store].name + '.' + (netErr ? ' (' + esc(netErr) + ')' : '') + '</span>';
     } else {
-      $('status').textContent = 'وُجد ' + mine.length + ' منتج مطابق في ' + STORES[store].name + '. الأفضل أولاً:';
+      $('status').textContent = 'وُجد ' + mine.length + ' منتج في ' + STORES[store].name + '. الأفضل أولاً:';
     }
     render();
   } catch (e) {
@@ -448,4 +420,3 @@ function card(p, key, i, maxVal, mode, isSug) {
 </script>
 </body>
 </html>
-
