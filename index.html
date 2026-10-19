@@ -14,7 +14,7 @@
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
-    --bg:#0e1a18; --card:#162724; --card:#162724; --ink:#e4f1ed; --muted:#93aaa4; --line:#264039;
+    --bg:#0e1a18; --card:#162724; --ink:#e4f1ed; --muted:#93aaa4; --line:#264039;
     --accent:#4fd1b3; --accent-ink:#06211b; --warn:#f2b35c; --good:#5fd79b; --chip:#1f3731;
     --bar:#24413a; --bar-fill:#4fd1b3;
   }
@@ -150,15 +150,23 @@ Object.entries(STORES).forEach(([k, s]) => {
 CATS.forEach(([ar, tag]) => {
   const o = document.createElement('option'); o.value = tag; o.textContent = ar; $('cat').appendChild(o);
 });
-$('cat').onchange = () => { $('customRow').hidden = $('cat').value !== 'custom'; };
-$('go').onclick = search;
+$('cat').onchange = () => {$('customRow').hidden = $('cat').value !== 'custom'; };$('go').onclick = search;
 
 /* ---------- جلب البيانات ---------- */
 async function getJSON(url) {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error('HTTP ' + r.status);
-  return r.json();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 ثوانٍ كحد أقصى للطلب
+  try {
+    const r = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return await r.json();
+  } catch(e) {
+    clearTimeout(timeoutId);
+    throw e;
+  }
 }
+
 function parse(p) {
   const n = p.nutriments || {};
   const carbs = num(n.carbohydrates_100g), sugar = num(n.sugars_100g), fiber = num(n.fiber_100g);
@@ -179,48 +187,40 @@ function parse(p) {
 const num = v => (v === undefined || v === null || v === '' || isNaN(+v)) ? null : +v;
 
 let netErr = '';
-async function tryUrl(url, seen) {
-  try {
-    const j = await getJSON(url);
-    let n = 0;
-    (j.products || []).forEach(p => { n++; const x = parse(p); if (x && !seen.has(x.code)) seen.set(x.code, x); });
-    return n;
-  } catch (e) { netErr = e.message || 'error'; return -1; }
-}
+
 async function fetchStore(key, cat) {
   const ck = key + '|' + cat;
   if (cache.has(ck)) return cache.get(ck);
   const seen = new Map();
   const base = 'https://world.openfoodfacts.org';
-  await Promise.all(STORES[key].tags.map(async t => {
+  
+  for (const t of STORES[key].tags) {
     const ts = encodeURIComponent(t);
-    const urls = [];
+    let url = '';
     if (cat.startsWith('q:')) {
       const q = encodeURIComponent(cat.slice(2));
-      urls.push(base + '/cgi/search.pl?action=process&json=1&search_simple=1&search_terms=' + q +
-        '&tagtype_0=stores&tag_contains_0=contains&tag_0=' + ts +
-        '&tagtype_1=countries&tag_contains_1=contains&tag_1=germany&page_size=100&fields=' + FIELDS);
+      url = `${base}/cgi/search.pl?action=process&json=1&search_simple=1&search_terms=${q}&tagtype_0=stores&tag_contains_0=contains&tag_0=${ts}&tagtype_1=countries&tag_contains_1=contains&tag_1=germany&page_size=50&fields=${FIELDS}`;
     } else {
-      urls.push(base + '/api/v2/search?stores_tags=' + ts + '&categories_tags=' + encodeURIComponent(cat) +
-        '&countries_tags=en:germany&page_size=100&fields=' + FIELDS);
       const c = encodeURIComponent(cat.replace(/^en:/, ''));
-      urls.push(base + '/cgi/search.pl?action=process&json=1&tagtype_0=stores&tag_contains_0=contains&tag_0=' + ts +
-        '&tagtype_1=categories&tag_contains_1=contains&tag_1=' + c +
-        '&tagtype_2=countries&tag_contains_2=contains&tag_2=germany&page_size=100&fields=' + FIELDS);
+      url = `${base}/cgi/search.pl?action=process&json=1&tagtype_0=stores&tag_contains_0=contains&tag_0=${ts}&tagtype_1=categories&tag_contains_1=contains&tag_1=${c}&tagtype_2=countries&tag_contains_2=contains&tag_2=germany&page_size=50&fields=${FIELDS}`;
     }
-    for (const u of urls) {
-      for (let a = 0; a < 2; a++) {
-        const n = await tryUrl(u, seen);
-        if (n > 0) return;
-        if (n === 0) break;                              // لا نتائج: جرّب الرابط التالي
-        await new Promise(r => setTimeout(r, 800));      // خطأ اتصال: أعد المحاولة
-      }
+    
+    try {
+      const j = await getJSON(url);
+      (j.products || []).forEach(p => {
+        const x = parse(p);
+        if (x && !seen.has(x.code)) seen.set(x.code, x);
+      });
+    } catch (e) {
+      netErr = e.message || 'خطأ اتصال';
     }
-  }));
+  }
+  
   const list = [...seen.values()];
   if (list.length || !netErr) cache.set(ck, list);
   return list;
 }
+
 function sorter(mode) {
   const f = {
     carbs: (a, b) => a.carbs - b.carbs || cmp(a.sugar, b.sugar) || (b.fiber ?? 0) - (a.fiber ?? 0),
@@ -234,14 +234,26 @@ const metric = (p, mode) => mode === 'sugar' ? p.sugar : mode === 'net' ? p.net 
 
 async function getPrice(code, key) {
   try {
-    const j = await getJSON('https://prices.openfoodfacts.org/api/v1/prices?product_code=' + code + '&order_by=-date&size=15');
-    const items = (j.items || []).filter(i => i.currency === 'EUR' && i.price != null);
+    const j = await getJSON('https://prices.openfoodfacts.org/api/v1/prices?product_code=' + code + '&size=10');
+    const items = Array.isArray(j) ? j : (j.items || j.data || []);
     if (!items.length) return null;
+    
+    const validItems = items.filter(i => (i.currency === 'EUR' || !i.currency) && i.price != null);
+    if (!validItems.length) return null;
+    
     const loc = i => ((i.location && (i.location.osm_name || '')) + ' ' + ((i.location && i.location.osm_brand) || ''));
-    const mine = items.find(i => STORES[key].match.test(loc(i)));
-    const it = mine || items[0];
-    return {price: it.price, date: it.date, sameStore: !!mine, place: it.location && it.location.osm_address_city || ''};
-  } catch (e) { return null; }
+    const mine = validItems.find(i => STORES[key].match.test(loc(i)));
+    const it = mine || validItems[0];
+    
+    return {
+      price: it.price, 
+      date: it.date || it.created_at || '', 
+      sameStore: !!mine, 
+      place: (it.location && (it.location.osm_address_city || it.location.city)) || ''
+    };
+  } catch (e) { 
+    return null; 
+  }
 }
 
 /* ---------- الترجمة من العربية إلى الألمانية ---------- */
@@ -257,9 +269,10 @@ const DICT = {
   'مربى':'Marmelade','شوكولاتة':'Schokolade','بسكويت':'Kekse','عصير':'Saft','صلصة':'Soße','زيتون':'Oliven',
   'مخلل':'Gurken','طماطم':'Tomaten','ذرة':'Mais','برغل':'Bulgur','كسكس':'Couscous','حبوب':'Müsli','لانشون':'Aufschnitt'
 };
+
 async function toGerman(txt) {
-  if (!/[\u0600-\u06FF]/.test(txt)) return txt;            // مكتوبة بحروف لاتينية أصلاً
-  const key = txt.replace(/[\u064B-\u0652]/g, '').trim();   // إزالة التشكيل
+  if (!/[\u0600-\u06FF]/.test(txt)) return txt;
+  const key = txt.replace(/[\u064B-\u0652]/g, '').trim();
   if (DICT[key]) return DICT[key];
   try {
     const j = await getJSON('https://api.mymemory.translated.net/get?langpair=ar|de&q=' + encodeURIComponent(key));
@@ -275,8 +288,7 @@ async function search() {
   if (cat === 'custom') {
     const raw = $('custom').value.trim();
     if (!raw) { $('status').innerHTML = '<span class="err">اكتب نوع المنتج أولاً.</span>'; return; }
-    $('go').disabled = true; $('out').innerHTML = '';
-    $('status').textContent = 'جاري ترجمة الكلمة إلى الألمانية…';
+    $('go').disabled = true; $('out').innerHTML = '';$('status').textContent = 'جاري ترجمة الكلمة إلى الألمانية…';
     const de = await toGerman(raw);
     if (!de) {
       $('status').innerHTML = '<span class="err">تعذّرت الترجمة. اكتب الكلمة بالألمانية مباشرة (مثل Datteln) وأعد المحاولة.</span>';
@@ -286,8 +298,7 @@ async function search() {
     cat = 'q:' + de;
   }
   const mode = $('sort').value;
-  $('go').disabled = true; $('out').innerHTML = ''; netErr = '';
-  $('status').textContent = 'جاري البحث في المتاجر الأربعة…';
+  $('go').disabled = true; $('out').innerHTML = ''; netErr = '';$('status').textContent = 'جاري البحث في المتاجر الأربعة…';
   try {
     const keys = Object.keys(STORES);
     const lists = await Promise.all(keys.map(k => fetchStore(k, cat)));
@@ -295,7 +306,7 @@ async function search() {
     state = {cat, mode, shown: 0, key: store, byStore};
     const mine = byStore[store];
     if (!mine.length) {
-      $('status').innerHTML = '<span class="err">لم أجد منتجات بقيم غذائية كاملة لهذا التصنيف في ' + STORES[store].name + '.' + (netErr ? ' (خطأ اتصال: ' + esc(netErr) + ' — أعد المحاولة بعد قليل)' : '') + '</span>';
+      $('status').innerHTML = '<span class="err">لم أجد منتجات بقيم غذائية كاملة لهذا التصنيف في ' + STORES[store].name + '.' + (netErr ? ' (خطأ اتصال: ' + esc(netErr) + ' — أعد المحاولة)' : '') + '</span>';
     } else {
       $('status').textContent = 'وُجد ' + mine.length + ' منتج في ' + STORES[store].name + '. الأفضل أولاً:';
     }
@@ -316,7 +327,7 @@ function render() {
     const box = document.createElement('div'); box.id = 'mineBox'; out.appendChild(box);
     state.shown = 0; more(maxVal);
   }
-  /* اقتراحات من متاجر أخرى إن وُجدت قيمة أقل */
+  
   const bestMine = mine.length ? metric(mine[0], mode) : Infinity;
   const sug = Object.keys(STORES).filter(k => k !== key).map(k => ({k, p: byStore[k][0]}))
     .filter(x => x.p && metric(x.p, mode) != null && (metric(x.p, mode) < (bestMine ?? Infinity)))
