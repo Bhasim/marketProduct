@@ -113,8 +113,7 @@ a{color:var(--accent)}
 </div>
 
 <script>
-/* ========== إعداد المتاجر ==========
-   نطابق داخل حقل stores وأسماء العلامات الخاصة بالمتجر. */
+/* ========== إعداد المتاجر ========== */
 const STORES = {
   lidl:  {name:'Lidl',  match:/lidl|milbona|freeway|cien|alesto|bellarom|sondey|vitasia|pilos|dulano|combino/i},
   aldi:  {name:'Aldi',  match:/aldi|milsani|bramwells|choceur|trappana|benefit/i},
@@ -122,23 +121,26 @@ const STORES = {
   edeka: {name:'Edeka', match:/edeka|alnatura|vehappy|gut ?& ?günstig|gut und günstig/i}
 };
 
+/* ========== ربط التصنيفات العربية بالألمانية وتصنيفات OFF ========== */
+// term: الكلمة الألمانية للبحث
+// tag: تصنيف OFF الدقيق لضمان دقة النتائج
 const CATS = [
-  ['خبز', 'Brot'],
-  ['خبز توست / شرائح', 'Toast'],
-  ['جبن', 'Käse'],
-  ['زبادي', 'Joghurt'],
-  ['حليب', 'Milch'],
-  ['حبوب الإفطار', 'Müsli'],
-  ['مكرونة', 'Nudeln'],
-  ['أرز', 'Reis'],
-  ['بسكويت', 'Kekse'],
-  ['شوكولاتة', 'Schokolade'],
-  ['عصير', 'Saft'],
-  ['مربى', 'Marmelade'],
-  ['مكسرات', 'Nüsse'],
-  ['صلصات', 'Soße'],
-  ['مقرمشات / كراكرز', 'Kräcker'],
-  ['نوع آخر (اكتبه بالعربية)…', 'custom']
+  { ar: 'خبز', term: 'Brot', tag: 'en:breads' },
+  { ar: 'خبز توست / شرائح', term: 'Toast', tag: 'en:toasts' },
+  { ar: 'جبن', term: 'Käse', tag: 'en:cheeses' },
+  { ar: 'زبادي', term: 'Joghurt', tag: 'en:yogurts' },
+  { ar: 'حليب', term: 'Milch', tag: 'en:milks' },
+  { ar: 'حبوب الإفطار', term: 'Müsli', tag: 'en:breakfast-cereals' },
+  { ar: 'مكرونة', term: 'Nudeln', tag: 'en:pastas' },
+  { ar: 'أرز', term: 'Reis', tag: 'en:rices' },
+  { ar: 'بسكويت', term: 'Kekse', tag: 'en:biscuits' },
+  { ar: 'شوكولاتة', term: 'Schokolade', tag: 'en:chocolates' },
+  { ar: 'عصير', term: 'Saft', tag: 'en:fruit-juices' },
+  { ar: 'مربى', term: 'Marmelade', tag: 'en:jams' },
+  { ar: 'مكسرات', term: 'Nüsse', tag: 'en:nuts' },
+  { ar: 'صلصات', term: 'Soße', tag: 'en:sauces' },
+  { ar: 'مقرمشات / كراكرز', term: 'Kräcker', tag: 'en:crackers' },
+  { ar: 'نوع آخر (اكتبه بالعربية)…', term: 'custom', tag: null }
 ];
 
 const FIELDS = [
@@ -166,25 +168,22 @@ Object.entries(STORES).forEach(([k, s]) => {
     store = k;
     document.querySelectorAll('#stores button')
       .forEach(x => x.setAttribute('aria-pressed', x === b));
-    if (state) { state.key = k; render(); }   // ← يعيد الفلترة فوراً عند تغيير المتجر
+    if (state) { state.key = k; render(); }
   };
   $('stores').appendChild(b);
 });
 
-CATS.forEach(([ar, term]) => {
+CATS.forEach(c => {
   const o = document.createElement('option');
-  o.value = term; o.textContent = ar;
+  o.value = c.term; o.textContent = c.ar;
   $('cat').appendChild(o);
 });
 
 $('cat').onchange = () => { $('customRow').hidden = $('cat').value !== 'custom'; };
 $('go').onclick = search;
 
-/* ========== طبقة الشبكة (مُصحّحة) ==========
-   نجرّب الاتصال المباشر أولاً (OFF يدعم CORS)، ثم وسيطاً واحداً فقط،
-   مع التحقق الصريح من محتوى الوسيط بدل الفشل الصامت. */
+/* ========== طبقة الشبكة ========== */
 async function getJSON(url) {
-  // 1) الاتصال المباشر
   try {
     const ctrl = new AbortController();
     const to = setTimeout(() => ctrl.abort(), 12000);
@@ -194,9 +193,8 @@ async function getJSON(url) {
       const j = await r.json();
       if (j && typeof j === 'object') return j;
     }
-  } catch (_) { /* نجرب الوسيط */ }
+  } catch (_) { }
 
-  // 2) وسيط واحد فقط كاحتياط
   const proxies = [
     u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
     u => 'https://corsproxy.io/?url=' + encodeURIComponent(u)
@@ -210,19 +208,12 @@ async function getJSON(url) {
       clearTimeout(to);
       if (!r.ok) { lastErr = new Error('proxy HTTP ' + r.status); continue; }
       const text = await r.text();
-      if (!text || !text.trim() || text.trim() === 'null') {
-        lastErr = new Error('proxy empty'); continue;
-      }
+      if (!text || !text.trim() || text.trim() === 'null') { lastErr = new Error('proxy empty'); continue; }
       let j;
       try { j = JSON.parse(text); } catch { lastErr = new Error('proxy bad JSON'); continue; }
-
-      // بعض الوسطاء يلفّون المحتوى داخل { contents: "..." }
       if (j && typeof j === 'object' && 'contents' in j) {
-        if (j.contents == null || j.contents === '') {
-          lastErr = new Error('proxy null contents'); continue;
-        }
-        try { j = JSON.parse(j.contents); }
-        catch { lastErr = new Error('proxy bad inner JSON'); continue; }
+        if (j.contents == null || j.contents === '') { lastErr = new Error('proxy null contents'); continue; }
+        try { j = JSON.parse(j.contents); } catch { lastErr = new Error('proxy bad inner JSON'); continue; }
       }
       return j;
     } catch (e) { lastErr = e; }
@@ -230,7 +221,7 @@ async function getJSON(url) {
   throw lastErr;
 }
 
-/* ========== تحليل المنتج (أخفّ صرامة بكثير) ========== */
+/* ========== تحليل المنتج ========== */
 function parse(p) {
   const n = p.nutriments || {};
   const name = (p.product_name_de || p.product_name || p.generic_name || '').trim();
@@ -257,31 +248,48 @@ function parse(p) {
     carbs, sugar, fiber, net,
     grade: (p.nutriscore_grade || '').toUpperCase(),
     imgs,
-    stores: (p.stores || '').toLowerCase()
+    stores: (p.stores || '').toLowerCase(),
+    categories: (p.categories_tags || []).join(' ')
   };
 }
 
-/* ========== جلب واحد فقط لكل بحث ثم فلترة محلياً ========== */
-async function fetchAll(term) {
+/* ========== جلب البيانات (معدل للدقة) ========== */
+async function fetchAll(term, tag, isCustom) {
   const ck = 'all|' + term;
   if (cache.has(ck)) return cache.get(ck);
 
-  const url = 'https://world.openfoodfacts.org/api/v2/search'
-    + '?search_terms=' + encodeURIComponent(term)
-    + '&countries_tags=en:germany'
-    + '&page_size=100'
-    + '&fields=' + FIELDS;
+  let url = 'https://world.openfoodfacts.org/api/v2/search';
+  url += '?countries_tags=en:germany';
+  url += '&page_size=100';
+  url += '&fields=' + FIELDS;
+
+  // إذا كان تصنيفاً معروفاً، استخدم التصنيف الدقيق
+  if (tag) {
+    url += '&categories_tags=' + encodeURIComponent(tag);
+  } else {
+    // إذا كان بحثاً مخصصاً، استخدم البحث النصي
+    url += '&search_terms=' + encodeURIComponent(term);
+  }
 
   const j = await getJSON(url);
   if (!j || !Array.isArray(j.products)) throw new Error('استجابة غير متوقعة من الخادم');
 
-  const list = j.products.map(parse).filter(Boolean);
+  let list = j.products.map(parse).filter(Boolean);
+
+  // فلترة محلية صارمة للبحث المخصص لمنع ظهور منتجات غير متصلة (مثل المياه)
+  if (isCustom) {
+    const cleanTerm = term.toLowerCase();
+    list = list.filter(p => 
+      p.name.toLowerCase().includes(cleanTerm) || 
+      p.categories.toLowerCase().includes(cleanTerm)
+    );
+  }
+
   const unique = [...new Map(list.map(x => [x.code, x])).values()];
   cache.set(ck, unique);
   return unique;
 }
 
-/* فلترة المتجر محلياً — مع fallback شفاف إذا لم نجد ما يكفي */
 function filterStore(list, key) {
   const re = STORES[key].match;
   const test = p => re.test(p.stores + ' ' + p.brandsRaw);
@@ -290,7 +298,6 @@ function filterStore(list, key) {
   return { items: list, approximate: true };
 }
 
-/* ========== الترتيب ========== */
 const cmp = (a, b) => (a == null ? Infinity : a) - (b == null ? Infinity : b);
 function sorter(mode) {
   if (mode === 'sugar') return (a, b) => cmp(a.sugar, b.sugar) || cmp(a.carbs, b.carbs);
@@ -303,7 +310,7 @@ function metric(p, mode) {
   return p.carbs;
 }
 
-/* ========== الأسعار (مهلة قصيرة + ذاكرة تخزين + بدون وسيط) ========== */
+/* ========== الأسعار ========== */
 async function getPrice(code, key) {
   const ck = 'price|' + code;
   if (!cache.has(ck)) {
@@ -361,7 +368,8 @@ const DICT = {
   'آيس كريم':'Eis','بوظة':'Eis','بيتزا':'Pizza','سلطة':'Salat','لبنة':'Frischkäse','جبنة':'Käse','جبن':'Käse',
   'خبز':'Brot','حليب':'Milch','أرز':'Reis','رز':'Reis','مكسرات':'Nüsse','لوز':'Mandeln','جوز':'Walnüsse',
   'مربى':'Marmelade','شوكولاتة':'Schokolade','بسكويت':'Kekse','عصير':'Saft','صلصة':'Soße','زيتون':'Oliven',
-  'مخلل':'Gurken','طماطم':'Tomaten','ذرة':'Mais','برغل':'Bulgur','كسكس':'Couscous','حبوب':'Müsli','لانشون':'Aufschnitt'
+  'مخلل':'Gurken','طماطم':'Tomaten','ذرة':'Mais','برغل':'Bulgur','كسكس':'Couscous','حبوب':'Müsli','لانشون':'Aufschnitt',
+  'حبوب الافطار':'Müsli', 'حبوب الإفطار':'Müsli'
 };
 
 async function toGerman(txt) {
@@ -387,6 +395,8 @@ async function toGerman(txt) {
 /* ========== البحث ========== */
 async function search() {
   let term = $('cat').value;
+  let tag = null;
+  let isCustom = false;
 
   if (term === 'custom') {
     const raw = $('custom').value.trim();
@@ -400,8 +410,11 @@ async function search() {
     }
     $('trans').textContent = 'البحث بالكلمة الألمانية: ' + de;
     term = de;
+    isCustom = true;
   } else {
     $('trans').textContent = '';
+    const catInfo = CATS.find(c => c.term === term);
+    if (catInfo) tag = catInfo.tag;
   }
 
   const mode = $('sort').value;
@@ -409,10 +422,9 @@ async function search() {
   $('status').textContent = 'جاري البحث في Open Food Facts…';
 
   try {
-    const all = await fetchAll(term);
+    const all = await fetchAll(term, tag, isCustom);
     if (!all.length) {
-      $('status').innerHTML = '<span class="err">لم أجد أي منتجات ألمانية مطابقة لـ «'
-        + esc(term) + '». جرّب تصنيفاً آخر أو كلمة أبسط.</span>';
+      $('status').innerHTML = '<span class="err">لم أجد أي منتجات ألمانية مطابقة. جرّب تصنيفاً آخر أو كلمة أبسط.</span>';
       $('go').disabled = false; return;
     }
     state = { term, all, mode, key: store };
@@ -459,7 +471,6 @@ function render() {
   const box = document.createElement('div'); box.id = 'mineBox'; out.appendChild(box);
   more();
 
-  /* اقتراحات من متاجر أخرى */
   const myBest = metric(sorted[0], mode);
   const sugs = [];
   for (const k of Object.keys(STORES)) {
