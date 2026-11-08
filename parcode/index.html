@@ -134,13 +134,24 @@ async function decodeImage(file){
     catch(e2){DBG='تعذّر فتح الصورة ('+(file.type||'نوع غير معروف')+')';return null}
   }
   DBG='حجم الصورة '+bmp.width+'×'+bmp.height;
-  for(const max of [2400,1600,1000,640]){
-    const k=Math.min(1,max/Math.max(bmp.width,bmp.height));
-    const w=Math.round(bmp.width*k),h=Math.round(bmp.height*k);
+  const W=bmp.width,H=bmp.height;
+  const pos=(L,r)=>{const a=[],st=r/2;for(let p=0;p+r<L;p+=st)a.push(p);a.push(L-r);return a};
+  const regs=[];
+  for(const f of [1,0.6,0.4]){
+    const rw=W*f,rh=H*f;
+    for(const y of pos(H,rh))for(const x of pos(W,rw))regs.push([x,y,rw,rh]);
+  }
+  let n=0;
+  for(const [sx,sy,rw,rh] of regs){
+    n++;
+    if(n%3===1){msg('جارٍ تحليل الصورة ('+n+'/'+regs.length+')...');await new Promise(r=>setTimeout(r,0))}
+    const k=Math.min(1,2000/Math.max(rw,rh));
+    const cw=Math.round(rw*k),ch=Math.round(rh*k);
     for(const rot of [0,90]){
       const c=document.createElement('canvas');
-      c.width=rot?h:w;c.height=rot?w:h;
-      const x=c.getContext('2d');x.translate(c.width/2,c.height/2);x.rotate(rot*Math.PI/180);x.drawImage(bmp,-w/2,-h/2,w,h);
+      c.width=rot?ch:cw;c.height=rot?cw:ch;
+      const x=c.getContext('2d');x.translate(c.width/2,c.height/2);x.rotate(rot*Math.PI/180);
+      x.drawImage(bmp,sx,sy,rw,rh,-cw/2,-ch/2,cw,ch);
       const src=new Z.HTMLCanvasElementLuminanceSource(c);
       for(const B of [Z.HybridBinarizer,Z.GlobalHistogramBinarizer]){
         try{return rd.decode(new Z.BinaryBitmap(new B(src))).getText()}catch(e){}
