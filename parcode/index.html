@@ -105,8 +105,8 @@ $('#file').onchange=async e=>{
   if(!f)return;
   if(!window.Html5Qrcode){msg('تعذّر تحميل الماسح. اكتب رقم الباركود يدويًا.');return}
   await stopScan();msg('جارٍ قراءة الصورة...');
-  let code=null;
-  try{code=await decodeImage(f)}catch(err){}
+  let code=null;DBG='';
+  try{code=await decodeImage(f)}catch(err){DBG+=' | خطأ: '+(err&&err.message||err)}
   if(!code&&window.Html5Qrcode){
     try{
       const F=Html5QrcodeSupportedFormats;
@@ -116,19 +116,25 @@ $('#file').onchange=async e=>{
     }catch(err){}
   }
   if(code){$('#code').value=code;lookup(code)}
-  else msg('لم أستطع قراءة الباركود من هذه الصورة. اقتطعها على الباركود فقط بحيث يملأ عرض الصورة، أو استخدم الكاميرا المباشرة، أو اكتب الرقم.');
+  else msg('لم أستطع قراءة الباركود من هذه الصورة. اقتطعها على الباركود فقط بحيث يملأ عرض الصورة، أو استخدم الكاميرا المباشرة، أو اكتب الرقم.'+(DBG?' ['+DBG+']':''));
 };
+let DBG='';
 async function decodeImage(file){
   if('BarcodeDetector' in window){
     try{const bd=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e']});const r=await bd.detect(await createImageBitmap(file));if(r[0])return r[0].rawValue}catch(e){}
   }
-  if(!window.ZXing)return null;
+  if(!window.ZXing){DBG='مكتبة القراءة لم تُحمَّل (تحقق من الإنترنت)';return null}
   const Z=ZXing,hints=new Map();
   hints.set(Z.DecodeHintType.TRY_HARDER,true);
   hints.set(Z.DecodeHintType.POSSIBLE_FORMATS,[Z.BarcodeFormat.EAN_13,Z.BarcodeFormat.EAN_8,Z.BarcodeFormat.UPC_A,Z.BarcodeFormat.UPC_E]);
   const rd=new Z.MultiFormatReader();rd.setHints(hints);
-  const bmp=await createImageBitmap(file);
-  for(const max of [1600,1000,640]){
+  let bmp;
+  try{bmp=await createImageBitmap(file)}catch(e){
+    try{const im=new Image();im.src=URL.createObjectURL(file);await im.decode();bmp=im;bmp.width=im.naturalWidth;bmp.height=im.naturalHeight}
+    catch(e2){DBG='تعذّر فتح الصورة ('+(file.type||'نوع غير معروف')+')';return null}
+  }
+  DBG='حجم الصورة '+bmp.width+'×'+bmp.height;
+  for(const max of [2400,1600,1000,640]){
     const k=Math.min(1,max/Math.max(bmp.width,bmp.height));
     const w=Math.round(bmp.width*k),h=Math.round(bmp.height*k);
     for(const rot of [0,90]){
