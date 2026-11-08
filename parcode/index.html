@@ -53,6 +53,8 @@ a{color:inherit}
 <p class="sub">امسح الباركود لتعرف هل المنتج مناسب لحدودك من الكربوهيدرات والسكر</p>
 
 <button class="big" id="scan">مسح الباركود بالكاميرا</button>
+<button class="sm" id="pick" style="width:100%;margin-top:8px;padding:12px">اختيار صورة فيها باركود</button>
+<input id="file" type="file" accept="image/*" hidden>
 <div id="reader" hidden></div>
 <div class="row"><input id="code" inputmode="numeric" placeholder="أو اكتب رقم الباركود" autocomplete="off"><button class="sm" id="find">بحث</button></div>
 <div id="msg" role="status" aria-live="polite"></div>
@@ -96,6 +98,20 @@ async function startScan(){
 }
 async function stopScan(){try{if(scanner){await scanner.stop();scanner.clear()}}catch(e){}scanner=null;$('#reader').hidden=true}
 $('#scan').onclick=()=>scanner?stopScan():startScan();
+$('#pick').onclick=()=>$('#file').click();
+$('#file').onchange=async e=>{
+  const f=e.target.files[0];e.target.value='';
+  if(!f)return;
+  if(!window.Html5Qrcode){msg('تعذّر تحميل الماسح. اكتب رقم الباركود يدويًا.');return}
+  await stopScan();msg('جارٍ قراءة الصورة...');
+  try{
+    const F=Html5QrcodeSupportedFormats;
+    const h=new Html5Qrcode('reader',{formatsToSupport:[F.EAN_13,F.EAN_8,F.UPC_A,F.UPC_E],verbose:false});
+    const code=await h.scanFile(f,false);
+    try{h.clear()}catch(_){}
+    $('#code').value=code;lookup(code);
+  }catch(err){msg('لم أجد باركودًا واضحًا في الصورة. قرّب الباركود واجعله مستقيمًا وبإضاءة جيدة، أو اكتب الرقم.')}
+};
 $('#find').onclick=()=>lookup($('#code').value);
 $('#code').addEventListener('keydown',e=>{if(e.key==='Enter')lookup($('#code').value)});
 
