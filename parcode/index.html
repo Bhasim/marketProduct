@@ -3,75 +3,87 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>ماسح المنتجات</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ماسح">
+<title>ماسح الباركود</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap">
 <style>
-:root{--bg:#EEF2F3;--card:#fff;--ink:#1B2B34;--mute:#5E7079;--tag:#FFD83D;--tagink:#241C00;--line:#D5DEE1;--btn:#1B2B34;--btnink:#fff;--g:#1F7A4D;--y:#B87A00;--r:#B3372B;--n:#5E7079}
-@media(prefers-color-scheme:dark){:root{--bg:#12191D;--card:#1B262C;--ink:#EAF0F2;--mute:#97A8B0;--line:#2D3C44;--btn:#FFD83D;--btnink:#241C00;--g:#2E9A63;--y:#C98A00;--r:#C8483B}}
+:root{--bg:#eef6f2;--card:#fff;--tx:#10312b;--mu:#5f7a73;--ac:#0f6b5c;--ac2:#dff1ec;--bd:#d3e6e0;--ok:#16a34a;--wa:#b87a00;--no:#dc2626;--hd:#0f6b5c;--ln:#2fe27a}
+@media(prefers-color-scheme:dark){:root{--bg:#0e1714;--card:#17241f;--tx:#e6f2ee;--mu:#93aaa2;--ac:#3fd0b8;--ac2:#1d3a33;--bd:#27403a;--ok:#4ade80;--wa:#f0b93a;--no:#f87171;--hd:#0b4a40}}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans Arabic",system-ui,sans-serif;line-height:1.6;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
-main{max-width:560px;margin:0 auto;padding:18px 14px 40px}
-h1{font-size:1.5rem;margin:6px 0 2px}
-h2{font-size:1.05rem;margin:0 0 8px}
-.sub{color:var(--mute);margin:0 0 16px;font-size:.95rem}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:"Cairo",-apple-system,"Segoe UI",Tahoma,Arial,sans-serif;line-height:1.6}
 button,input{font:inherit}
-.big{width:100%;padding:16px;border:0;border-radius:12px;background:var(--btn);color:var(--btnink);font-weight:700;font-size:1.1rem;cursor:pointer}
-button:focus-visible,input:focus-visible,summary:focus-visible,a:focus-visible{outline:3px solid var(--tag);outline-offset:2px}
-#reader{margin-top:12px;border-radius:12px;overflow:hidden;background:#000}
-.row{display:flex;gap:8px;margin-top:12px}
-input{flex:1;min-width:0;padding:12px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}
-.sm{padding:0 16px;border:1.5px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);cursor:pointer;font-weight:600}
-#msg{margin:14px 0 0;color:var(--mute);min-height:1.4em}
-.card{background:var(--card);border:1px solid var(--line);border-radius:12px;margin:14px 0;overflow:hidden}
-.verdict{padding:12px 14px;color:#fff;font-weight:700;font-size:1.15rem}
-.verdict small{display:block;font-weight:400;font-size:.85rem;opacity:.95}
-.g{background:var(--g)}.y{background:var(--y)}.r{background:var(--r)}.n{background:var(--n)}
-.body{padding:12px 14px}
-.top{display:flex;gap:12px;align-items:flex-start}
-.top img{width:80px;height:80px;object-fit:contain;background:#fff;border-radius:8px;flex:none}
-.name{font-weight:700;margin:0;overflow-wrap:anywhere}
-.meta{color:var(--mute);font-size:.85rem;margin:0}
-table{width:100%;border-collapse:collapse;margin-top:12px;font-size:.95rem}
-td,th{padding:6px 4px;border-bottom:1px solid var(--line);text-align:start}
-th{color:var(--mute);font-weight:400}
+.hd{background:var(--hd);color:#fff;text-align:center;padding:calc(env(safe-area-inset-top,0px) + 14px) 14px 14px}
+.hd h1{margin:0;font-size:20px;font-weight:800}.hd p{margin:0;font-size:13px;opacity:.85}
+main{max-width:560px;margin:0 auto;padding:0 0 40px}
+.cam{position:relative;height:300px;background:linear-gradient(160deg,#2b2f2a,#12171a);overflow:hidden}
+#reader{position:absolute;inset:0;border:0!important}
+#reader video{width:100%!important;height:100%!important;object-fit:cover}
+.frame{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);width:76%;height:44%;pointer-events:none}
+.c{position:absolute;width:34px;height:34px;border:4px solid #fff}
+.tl{top:0;left:0;border-right:0;border-bottom:0;border-radius:16px 0 0 0}
+.tr{top:0;right:0;border-left:0;border-bottom:0;border-radius:0 16px 0 0}
+.bl{bottom:0;left:0;border-right:0;border-top:0;border-radius:0 0 0 16px}
+.br{bottom:0;right:0;border-left:0;border-top:0;border-radius:0 0 16px 0}
+.ln{position:absolute;left:-4%;right:-4%;top:50%;height:3px;background:var(--ln);box-shadow:0 0 10px var(--ln);border-radius:2px;display:none}
+.cam.on .ln{display:block;animation:sw 2.2s ease-in-out infinite}
+@keyframes sw{0%,100%{top:12%}50%{top:88%}}
+@media(prefers-reduced-motion:reduce){.cam.on .ln{animation:none}}
+.hint{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);background:rgba(255,255,255,.88);color:#10312b;border-radius:999px;padding:6px 18px;font-size:13px;font-weight:600;white-space:nowrap}
+.pad{padding:14px}
+.btn{display:block;width:100%;padding:14px;border:0;border-radius:16px;background:linear-gradient(135deg,#14a094,#0f6b5c);color:#fff;font-weight:700;font-size:16px;cursor:pointer;box-shadow:0 6px 14px rgba(15,107,92,.22);text-align:center;text-decoration:none}
+.btn.alt{background:var(--ac2);color:var(--ac);box-shadow:none}
+.row{display:flex;gap:8px;margin-top:10px}
+input{flex:1;min-width:0;padding:12px;border:1px solid var(--bd);border-radius:12px;background:var(--card);color:var(--tx)}
+button:focus-visible,input:focus-visible,summary:focus-visible,a:focus-visible{outline:3px solid var(--ac);outline-offset:2px}
+.sm{padding:0 16px;border:1px solid var(--bd);border-radius:12px;background:var(--card);color:var(--tx);cursor:pointer;font-weight:700}
+#msg{margin:12px 0 0;color:var(--mu);min-height:1.4em;font-size:14px}
+.res{background:var(--card);border-radius:22px;box-shadow:0 6px 22px rgba(15,107,92,.09);padding:16px;margin-top:12px}
+.top{display:flex;gap:14px;align-items:flex-start}
+.top img{width:84px;height:84px;object-fit:contain;background:#fff;border-radius:12px;flex:none}
+.name{font-weight:800;font-size:18px;margin:0;overflow-wrap:anywhere}
+.meta{color:var(--mu);font-size:13px;margin:0}
+.pill{display:inline-block;border-radius:10px;padding:2px 14px;font-weight:800;margin:4px 0;color:#fff}
+.pill.g{background:var(--ok)}.pill.y{background:var(--wa)}.pill.r{background:var(--no)}.pill.n{background:var(--mu)}
+.why{list-style:none;padding:0;margin:12px 0 0}
+.why li{display:flex;gap:10px;align-items:center;padding:4px 0;font-size:15px}
+.d{width:12px;height:12px;border-radius:50%;flex:none}.d.g{background:var(--ok)}.d.y{background:var(--wa)}.d.r{background:var(--no)}
+.por{display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap}.por input{max-width:110px;flex:none}
+table{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px}
+td,th{padding:5px 4px;border-bottom:1px solid var(--bd);text-align:start}th{color:var(--mu);font-weight:400}
 td:not(:first-child),th:not(:first-child){text-align:end}
-.por{display:flex;align-items:center;gap:8px;margin-top:12px}
-.por input{max-width:110px}
-.tag{display:inline-block;background:var(--tag);color:var(--tagink);border-radius:4px;padding:0 8px;font-weight:700}
-details{background:var(--card);border:1px solid var(--line);border-radius:12px;margin:14px 0;padding:10px 14px}
+details{background:var(--card);border-radius:16px;margin-top:12px;padding:10px 14px;box-shadow:0 4px 14px rgba(15,107,92,.07)}
 summary{cursor:pointer;font-weight:700}
-.grid{display:grid;grid-template-columns:1fr 90px;gap:8px;align-items:center;margin-top:10px}
-.item{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:.92rem}
-.item button{border:0;background:none;color:var(--r);cursor:pointer}
-.note{color:var(--mute);font-size:.8rem;margin-top:8px}
+.grid{display:grid;grid-template-columns:1fr 90px;gap:8px;align-items:center;margin-top:10px;font-size:14px}
+.note{color:var(--mu);font-size:12.5px;margin-top:10px}
 a{color:inherit}
 </style>
 </head>
 <body>
+<header class="hd"><h1>ماسح الباركود</h1><p>اختيارات غذائية أذكى</p></header>
 <main>
-<h1>ماسح المنتجات</h1>
-<p class="sub">امسح الباركود لتعرف هل المنتج مناسب لحدودك من الكربوهيدرات والسكر</p>
+<div class="cam" id="cam">
+  <div id="reader"></div>
+  <div class="frame"><span class="c tl"></span><span class="c tr"></span><span class="c bl"></span><span class="c br"></span><i class="ln"></i></div>
+  <div class="hint" id="hint">اضغط «ابدأ المسح»</div>
+</div>
+<div class="pad">
+  <button class="btn" id="scan">ابدأ المسح</button>
+  <div class="row"><button class="sm" id="pick" style="padding:12px">صورة</button><input id="file" type="file" accept="image/*" hidden>
+  <input id="code" inputmode="numeric" placeholder="أو اكتب رقم الباركود" autocomplete="off"><button class="sm" id="find">بحث</button></div>
+  <div id="msg" role="status" aria-live="polite"></div>
+  <div id="out"></div>
 
-<button class="big" id="scan">مسح الباركود بالكاميرا</button>
-<button class="sm" id="pick" style="width:100%;margin-top:8px;padding:12px">اختيار صورة فيها باركود</button>
-<input id="file" type="file" accept="image/*" hidden>
-<div id="reader" hidden></div>
-<div class="row"><input id="code" inputmode="numeric" placeholder="أو اكتب رقم الباركود" autocomplete="off"><button class="sm" id="find">بحث</button></div>
-<div id="msg" role="status" aria-live="polite"></div>
-<div id="out"></div>
-
-<details>
-<summary>حدودي (لكل 100 غرام)</summary>
-<div class="grid"><label for="gc">كربوهيدرات: أخضر حتى</label><input id="gc" type="number" min="0" step="0.5" inputmode="decimal">
-<label for="rc">كربوهيدرات: أحمر فوق</label><input id="rc" type="number" min="0" step="0.5" inputmode="decimal">
-<label for="gs">سكر: أخضر حتى</label><input id="gs" type="number" min="0" step="0.5" inputmode="decimal">
-<label for="rs">سكر: أحمر فوق</label><input id="rs" type="number" min="0" step="0.5" inputmode="decimal"></div>
-<p class="note">ما بين الأخضر والأحمر يظهر أصفر. هذه قيم عامة للبداية، فاضبطها مع طبيبك أو أخصائي التغذية.</p>
-</details>
-
-<section class="card"><div class="body"><h2>وجباتي اليوم</h2><div id="log"></div></div></section>
-
-<p class="note">البيانات من <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a> ويضيفها متطوعون وقد تكون ناقصة أو خاطئة، فراجع الملصق على العبوة. للمعلومة فقط وليس نصيحة طبية.</p>
+  <details>
+    <summary>حدودي (لكل 100 غرام)</summary>
+    <div class="grid"><label for="gc">كربوهيدرات: أخضر حتى</label><input id="gc" type="number" min="0" step="0.5" inputmode="decimal">
+    <label for="rc">كربوهيدرات: أحمر فوق</label><input id="rc" type="number" min="0" step="0.5" inputmode="decimal">
+    <label for="gs">سكر: أخضر حتى</label><input id="gs" type="number" min="0" step="0.5" inputmode="decimal">
+    <label for="rs">سكر: أحمر فوق</label><input id="rs" type="number" min="0" step="0.5" inputmode="decimal"></div>
+    <p class="note">ما بين الأخضر والأحمر يظهر أصفر. قيم عامة للبداية، فاضبطها مع طبيبك أو أخصائي التغذية.</p>
+  </details>
+  <p class="note">البيانات من <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a> ويضيفها متطوعون وقد تكون ناقصة أو خاطئة، فراجع الملصق على العبوة. للمعلومة فقط وليس نصيحة طبية.</p>
+</div>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
@@ -80,45 +92,35 @@ a{color:inherit}
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
-const DEF={gc:10,rc:30,gs:5,rs:15};
-let T={...DEF,...LS.get('thr',{})};
-let cur=null,scanner=null;
-const day=()=>new Date().toLocaleDateString('sv');
+let T={gc:10,rc:30,gs:5,rs:15,...LS.get('thr',{})};
+let cur=null,scanner=null,DBG='';
 const r1=v=>Math.round(v*10)/10;
 const msg=t=>{$('#msg').textContent=t};
 
 ['gc','rc','gs','rs'].forEach(k=>{const e=$('#'+k);e.value=T[k];e.oninput=()=>{const v=parseFloat(e.value);if(!isNaN(v)){T[k]=v;LS.set('thr',T);if(cur)render()}}});
 
+function setOn(on){$('#cam').classList.toggle('on',on);$('#hint').textContent=on?'ضع الباركود داخل الإطار':'اضغط «ابدأ المسح»';$('#scan').textContent=on?'إيقاف المسح':'ابدأ المسح'}
 async function startScan(){
   if(!window.Html5Qrcode){msg('تعذّر تحميل الماسح. اكتب رقم الباركود يدويًا.');return}
-  $('#reader').hidden=false;msg('وجّه الكاميرا نحو الباركود');
   const F=Html5QrcodeSupportedFormats;
   scanner=new Html5Qrcode('reader',{formatsToSupport:[F.EAN_13,F.EAN_8,F.UPC_A,F.UPC_E],verbose:false});
-  try{await scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:260,height:140}},c=>{stopScan();lookup(c)},()=>{})}
-  catch(e){msg('تعذّر فتح الكاميرا. اسمح لها من إعدادات سفاري أو اكتب الرقم يدويًا.');$('#reader').hidden=true;scanner=null}
+  try{await scanner.start({facingMode:'environment'},{fps:10},c=>{stopScan();lookup(c)},()=>{});setOn(true);msg('')}
+  catch(e){msg('تعذّر فتح الكاميرا. اسمح لها من إعدادات سفاري أو اكتب الرقم يدويًا.');scanner=null;setOn(false)}
 }
-async function stopScan(){try{if(scanner){await scanner.stop();scanner.clear()}}catch(e){}scanner=null;$('#reader').hidden=true}
+async function stopScan(){try{if(scanner){await scanner.stop();scanner.clear()}}catch(e){}scanner=null;setOn(false)}
 $('#scan').onclick=()=>scanner?stopScan():startScan();
+$('#find').onclick=()=>lookup($('#code').value);
+$('#code').addEventListener('keydown',e=>{if(e.key==='Enter')lookup($('#code').value)});
 $('#pick').onclick=()=>$('#file').click();
 $('#file').onchange=async e=>{
   const f=e.target.files[0];e.target.value='';
   if(!f)return;
-  if(!window.Html5Qrcode){msg('تعذّر تحميل الماسح. اكتب رقم الباركود يدويًا.');return}
   await stopScan();msg('جارٍ قراءة الصورة...');
   let code=null;DBG='';
   try{code=await decodeImage(f)}catch(err){DBG+=' | خطأ: '+(err&&err.message||err)}
-  if(!code&&window.Html5Qrcode){
-    try{
-      const F=Html5QrcodeSupportedFormats;
-      const h=new Html5Qrcode('reader',{formatsToSupport:[F.EAN_13,F.EAN_8,F.UPC_A,F.UPC_E],verbose:false});
-      code=await h.scanFile(f,false);
-      try{h.clear()}catch(_){}
-    }catch(err){}
-  }
   if(code){$('#code').value=code;lookup(code)}
-  else msg('لم أستطع قراءة الباركود من هذه الصورة. اقتطعها على الباركود فقط بحيث يملأ عرض الصورة، أو استخدم الكاميرا المباشرة، أو اكتب الرقم.'+(DBG?' ['+DBG+']':''));
+  else msg('لم أستطع قراءة الباركود من هذه الصورة. اقتطعها على الباركود فقط، أو استخدم الكاميرا المباشرة، أو اكتب الرقم.'+(DBG?' ['+DBG+']':''));
 };
-let DBG='';
 async function decodeImage(file){
   if('BarcodeDetector' in window){
     try{const bd=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e']});const r=await bd.detect(await createImageBitmap(file));if(r[0])return r[0].rawValue}catch(e){}
@@ -137,10 +139,7 @@ async function decodeImage(file){
   const W=bmp.width,H=bmp.height;
   const pos=(L,r)=>{const a=[],st=r/2;for(let p=0;p+r<L;p+=st)a.push(p);a.push(L-r);return a};
   const regs=[];
-  for(const f of [1,0.6,0.4]){
-    const rw=W*f,rh=H*f;
-    for(const y of pos(H,rh))for(const x of pos(W,rw))regs.push([x,y,rw,rh]);
-  }
+  for(const f of [1,0.6,0.4]){const rw=W*f,rh=H*f;for(const y of pos(H,rh))for(const x of pos(W,rw))regs.push([x,y,rw,rh])}
   let n=0;
   for(const [sx,sy,rw,rh] of regs){
     n++;
@@ -160,8 +159,6 @@ async function decodeImage(file){
   }
   return null;
 }
-$('#find').onclick=()=>lookup($('#code').value);
-$('#code').addEventListener('keydown',e=>{if(e.key==='Enter')lookup($('#code').value)});
 
 async function lookup(code){
   code=String(code).replace(/\D/g,'');
@@ -170,8 +167,8 @@ async function lookup(code){
   try{
     const r=await fetch('https://world.openfoodfacts.org/api/v2/product/'+code+'.json?fields=code,product_name,product_name_de,brands,quantity,nutriments,nutriscore_grade,nova_group,image_front_small_url,serving_quantity');
     const j=await r.json().catch(()=>null);
-    if(!j){throw new Error('x')}
-    if(j.status!==1){msg('');$('#out').innerHTML=`<div class="card"><div class="verdict n">المنتج غير موجود في القاعدة<small>الباركود ${esc(code)}</small></div><div class="body">يمكنك <a href="https://world.openfoodfacts.org/cgi/product.pl?type=search_or_add&code=${esc(code)}" target="_blank" rel="noopener">إضافته بتصويره</a> ليستفيد منه الجميع.</div></div>`;return}
+    if(!j)throw new Error('x');
+    if(j.status!==1){msg('');$('#out').innerHTML=`<div class="res"><span class="pill n">المنتج غير موجود في القاعدة</span><p class="meta">الباركود ${esc(code)}</p><p><a href="https://world.openfoodfacts.org/cgi/product.pl?type=search_or_add&code=${esc(code)}" target="_blank" rel="noopener">أضفه بتصويره</a> ليستفيد منه الجميع.</p></div>`;return}
     const p=j.product,n=p.nutriments||{};
     const num=v=>(v==null||v===''||isNaN(+v))?null:+v;
     cur={code,name:p.product_name_de||p.product_name||'بدون اسم',brand:(p.brands||'').split(',')[0],qty:p.quantity||'',img:p.image_front_small_url,
@@ -181,40 +178,38 @@ async function lookup(code){
   }catch(e){msg('تعذّر الاتصال بـ Open Food Facts. تحقق من الإنترنت وأعد المحاولة.')}
 }
 function verdict(p){
-  if(p.c==null)return['n','بيانات ناقصة','لا توجد قيمة للكربوهيدرات، راجع الملصق'];
-  const sOk=p.s==null?'':' (السكر غير مذكور)';
-  if(p.c>T.rc||(p.s!=null&&p.s>T.rs))return['r','فوق حدودك','أعلى من حدّك الأحمر'+sOk];
-  if(p.c<=T.gc&&(p.s==null||p.s<=T.gs))return['g','مناسب','ضمن حدودك الخضراء'+sOk];
-  return['y','باعتدال','بين الحدّين، انتبه للحصة'+sOk];
+  if(p.c==null)return['n','بيانات ناقصة'];
+  if(p.c>T.rc||(p.s!=null&&p.s>T.rs))return['r','فوق حدودك'];
+  if(p.c<=T.gc&&(p.s==null||p.s<=T.gs))return['g','خيار جيد'];
+  return['y','باعتدال'];
 }
 const per=(v,g)=>v==null?'—':r1(v*g/100);
 function render(){
-  const p=cur,[cl,t,sub]=verdict(p);
-  const g=parseFloat($('#gr')?.value)||p.g;
-  $('#out').innerHTML=`<div class="card"><div class="verdict ${cl}">${t}<small>${sub}</small></div><div class="body">
-  <div class="top">${p.img?`<img src="${esc(p.img)}" alt="" onerror="this.remove()">`:''}<div><p class="name">${esc(p.name)}</p><p class="meta">${esc(p.brand)}${p.qty?' • '+esc(p.qty):''}</p><p class="meta">${p.ns?'Nutri-Score '+esc(p.ns):''}${p.nova?' • NOVA '+esc(p.nova):''}</p></div></div>
+  const p=cur,[cl,t]=verdict(p),g=parseFloat($('#gr')?.value)||p.g,why=[];
+  if(p.c!=null)why.push(['كربوهيدرات '+r1(p.c)+' غ لكل 100 غ',p.c<=T.gc?'g':p.c>T.rc?'r':'y']);
+  if(p.s!=null)why.push(['سكر '+r1(p.s)+' غ لكل 100 غ',p.s<=T.gs?'g':p.s>T.rs?'r':'y']);
+  if(p.f!=null&&p.f>=3)why.push(['غني بالألياف ('+r1(p.f)+' غ)','g']);
+  if(String(p.nova)==='4')why.push(['فائق المعالجة (NOVA 4)','y']);
+  $('#out').innerHTML=`<div class="res"><div class="top">${p.img?`<img src="${esc(p.img)}" alt="" onerror="this.remove()">`:''}<div><p class="name">${esc(p.name)}</p><span class="pill ${cl}">${t}</span><p class="meta">${esc(p.brand)}${p.qty?' • '+esc(p.qty):''}${p.ns?' • Nutri-Score '+esc(p.ns):''}</p></div></div>
+  <ul class="why">${why.map(w=>`<li><i class="d ${w[1]}"></i>${esc(w[0])}</li>`).join('')}</ul>
   <div class="por"><label for="gr">الكمية التي سآكلها (غرام)</label><input id="gr" type="number" min="1" inputmode="decimal" value="${g}"></div>
   <table><tr><th></th><th>لكل 100 غ</th><th>حصتي</th></tr>
-  <tr><td>كربوهيدرات</td><td>${p.c==null?'—':r1(p.c)}</td><td><span class="tag">${per(p.c,g)}</span></td></tr>
+  <tr><td>سعرات</td><td>${p.k==null?'—':Math.round(p.k)}</td><td>${p.k==null?'—':Math.round(p.k*g/100)}</td></tr>
+  <tr><td>كربوهيدرات</td><td>${p.c==null?'—':r1(p.c)}</td><td>${per(p.c,g)}</td></tr>
   <tr><td>منها سكر</td><td>${p.s==null?'—':r1(p.s)}</td><td>${per(p.s,g)}</td></tr>
   <tr><td>ألياف</td><td>${p.f==null?'—':r1(p.f)}</td><td>${per(p.f,g)}</td></tr>
-  <tr><td>بروتين</td><td>${p.p==null?'—':r1(p.p)}</td><td>${per(p.p,g)}</td></tr>
-  <tr><td>سعرات</td><td>${p.k==null?'—':Math.round(p.k)}</td><td>${p.k==null?'—':Math.round(p.k*g/100)}</td></tr></table>
-  <div class="row"><button class="sm" id="add" style="flex:1;padding:12px">أضف إلى وجباتي اليوم</button><a class="sm" style="display:flex;align-items:center;text-decoration:none" href="https://world.openfoodfacts.org/product/${esc(p.code)}" target="_blank" rel="noopener">الصفحة</a></div>
-  </div></div>`;
-  $('#gr').oninput=()=>{const pos=$('#gr').value;render();const e=$('#gr');e.focus();e.setSelectionRange(pos.length,pos.length)};
-  $('#add').onclick=()=>{const L=getLog();L.items.push({n:p.name,g,c:p.c==null?0:p.c*g/100,s:p.s==null?0:p.s*g/100,k:p.k==null?0:p.k*g/100});LS.set('log',L);renderLog();msg('أُضيف إلى وجباتك')};
+  <tr><td>بروتين</td><td>${p.p==null?'—':r1(p.p)}</td><td>${per(p.p,g)}</td></tr></table>
+  <div class="row"><button class="btn" id="cp">نسخ للوجبات</button><a class="sm" style="display:flex;align-items:center;text-decoration:none" href="https://world.openfoodfacts.org/product/${esc(p.code)}" target="_blank" rel="noopener">الصفحة</a></div>
+  <input id="cc" readonly hidden style="margin-top:8px;width:100%">
+  <p class="note">«نسخ للوجبات» ينسخ المنتج بكميتك، ثم افتح تطبيق الوجبات واضغط تبويب «مسح» ثم «لصق».</p></div>`;
+  $('#gr').oninput=()=>{const v=$('#gr').value;render();const e=$('#gr');e.focus();e.setSelectionRange(v.length,v.length)};
+  $('#cp').onclick=async()=>{
+    const gg=parseFloat($('#gr').value)||p.g,nm=(p.name+' ('+gg+' غ)').replace(/\|/g,' ').slice(0,90);
+    const code=['WJB1',nm,Math.round((p.k||0)*gg/100),r1((p.c||0)*gg/100),r1((p.s||0)*gg/100)].join('|');
+    try{await navigator.clipboard.writeText(code);msg('تم النسخ. افتح تطبيق الوجبات ثم تبويب «مسح» ثم «لصق»')}
+    catch(e){const i=$('#cc');i.hidden=false;i.value=code;i.select();msg('انسخ النص الظاهر يدويًا ثم الصقه في تطبيق الوجبات')}
+  };
 }
-function getLog(){const L=LS.get('log',null);return(L&&L.d===day())?L:{d:day(),items:[]}}
-function renderLog(){
-  const L=getLog(),el=$('#log');
-  if(!L.items.length){el.innerHTML='<p class="meta">لا شيء بعد. امسح منتجًا ثم أضفه.</p>';return}
-  const tot=L.items.reduce((a,i)=>({c:a.c+i.c,s:a.s+i.s,k:a.k+i.k}),{c:0,s:0,k:0});
-  el.innerHTML=L.items.map((i,x)=>`<div class="item"><span>${esc(i.n)} • ${r1(i.g)} غ<br><span class="meta">كربوهيدرات ${r1(i.c)} • سكر ${r1(i.s)}</span></span><button data-x="${x}" aria-label="حذف">حذف</button></div>`).join('')
-   +`<p style="margin:10px 0 0"><b>المجموع:</b> كربوهيدرات <span class="tag">${r1(tot.c)} غ</span> • سكر ${r1(tot.s)} غ • ${Math.round(tot.k)} سعرة</p>`;
-  el.querySelectorAll('button[data-x]').forEach(b=>b.onclick=()=>{const L2=getLog();L2.items.splice(+b.dataset.x,1);LS.set('log',L2);renderLog()});
-}
-renderLog();
 </script>
 </body>
 </html>
